@@ -18,8 +18,7 @@ my_doc_db = mongo_client[cosmos_database_name]
 my_orders = my_doc_db[cosmos_collection_name]
 my_docs = my_orders.find({}, {'_id':0})
 # Prints all documents in the collection
-for doc in my_docs:
-    print(doc['name'])
+
 
 
 def connect_to_azure_sql_database():
@@ -34,6 +33,19 @@ def connect_to_azure_sql_database():
   connection = pyodbc.connect(connection_string)
   return connection
 
+def get_order_items_sql(connection, order_id):
+    """Shows all the records for a given table."""
+    cursor = connection.cursor()
+    cursor.execute("SELECT * \n"
+                   + "FROM [pizza].[order_items] as p\n"
+                   + "where [p].[order_id] = '" + str(order_id) + "' ")
+    rows = cursor.fetchall()
+    itemsList = []
+    for row in rows:
+       itemsList.append({'Pizza_Name' : row[2]  , 'Quantity': row[3] , 'Price_Each' :  float(row[4])})
+    return(itemsList)
+
+
 def show_records_for_day(connection, day):
     """Shows all the records for a given table."""
     cursor = connection.cursor()
@@ -47,9 +59,11 @@ def show_records_for_day(connection, day):
             {
                 "order_id" : row[0],
                 "customer_id" : row[1],
-                "order_date" : row[3]
-            }
+                "order_date" : row[3],
+                "items" : get_order_items_sql(connection,row[0])
+            }   
         )
+        print(get_order_items_sql(connection,row[0])[1]['Pizza_Name'])
         print(row[0])
 
 """def insert_record(connection, mytable, myrecord):
@@ -69,7 +83,7 @@ def general_query(connection):
 
 
 connection = connect_to_azure_sql_database()
-show_records_for_day(connection, 5)
+show_records_for_day(connection, 1)
 
 connection.close()
 
