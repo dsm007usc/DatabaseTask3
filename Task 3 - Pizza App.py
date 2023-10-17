@@ -13,10 +13,10 @@ cosmos_collection_name = "Orders"
 uri = f'mongodb://{cosmos_user_name}:{cosmos_password}@{cosmos_url}?ssl=true&retrywrites=false&replicaSet=globaldb&maxIdleTimeMS=120000&appName=@{cosmos_user_name}@'
 mongo_client = MongoClient(uri)
 # This is the name of the Mongo compatible database
-my_db = mongo_client[cosmos_database_name]
+my_doc_db = mongo_client[cosmos_database_name]
 # The name of the collection you are querying
-my_col = my_db[cosmos_collection_name]
-my_docs = my_col.find({}, {'_id':0})
+my_orders = my_doc_db[cosmos_collection_name]
+my_docs = my_orders.find({}, {'_id':0})
 # Prints all documents in the collection
 for doc in my_docs:
     print(doc['name'])
@@ -43,7 +43,14 @@ def show_records_for_day(connection, day):
                    + "where [v].[order_day] = '" + str(day) + "' ")
     rows = cursor.fetchall()
     for row in rows:
-        print(row)
+        my_orders.insert_one(
+            {
+                "order_id" : row[0],
+                "customer_id" : row[1],
+                "order_date" : row[3]
+            }
+        )
+        print(row[0])
 
 """def insert_record(connection, mytable, myrecord):
     Inserts a given record into a given table.
