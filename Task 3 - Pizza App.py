@@ -43,7 +43,42 @@ def get_order_items_sql(connection, order_id):
     itemsList = []
     for row in rows:
        itemsList.append({'Pizza_Name' : row[2]  , 'Quantity': row[3] , 'Price_Each' :  float(row[4])})
+    print(itemsList[0]['Pizza_Name'])
     return(itemsList)
+
+def get_customer_details(connection, customer_id):
+    """Shows all the records for a given table."""
+    cursor = connection.cursor()
+    cursor.execute("SELECT * \n"
+                   + "FROM [pizza].[customers] as c\n"
+                   + "where [c].[customer_id] = '" + str(customer_id) + "' ")
+    rows = cursor.fetchall()
+    cust_dets = {}
+    for row in rows:
+       cust_dets.update({'first_Name' : row[1]  , 'last_Name': row[2] , 'phone' :  row[3], 'address':row[4], 'post_code':row[5]})
+    return(cust_dets)
+
+def create_Delivery_Doc(connection, order_id, customer_id):
+    """Shows all the records for a given table."""
+    itemsList = {}
+    customer_list = get_customer_details(connection,customer_id)
+    itemsList.update({'customer_name' : customer_list['first_Name'], 
+                      'customer_address' : customer_list['address'],
+                      'customer_postcode' : customer_list['post_code']})
+    return(itemsList)
+
+def create_Cooking_Doc(connection, order_id):
+    """Shows all the records for a given table."""
+    cursor = connection.cursor()
+    cursor.execute("SELECT * \n"
+                   + "FROM [pizza].[order_items] as p\n"
+                   + "where [p].[order_id] = '" + str(order_id) + "' ")
+    rows = cursor.fetchall()
+    itemsList = []
+    for row in rows:
+       itemsList.append({'Pizza_Name' : row[2]  , 'Quantity': row[3] , 'Price_Each' :  float(row[4])})
+    return(itemsList)
+    
 
 
 def show_records_for_day(connection, day):
@@ -58,13 +93,14 @@ def show_records_for_day(connection, day):
         my_orders.insert_one(
             {
                 "order_id" : row[0],
-                "customer_id" : row[1],
+                "customer_Info" : get_customer_details(connection,row[1]),
                 "order_date" : row[3],
-                "items" : get_order_items_sql(connection,row[0])
+                "items" : get_order_items_sql(connection,row[0]),
+                "delivery_Docket" : create_Delivery_Doc(connection,row[0],row[1])
+                
             }   
         )
-        print(get_order_items_sql(connection,row[0])[1]['Pizza_Name'])
-        print(row[0])
+        print(get_customer_details(connection,row[1])['first_Name'])
 
 """def insert_record(connection, mytable, myrecord):
     Inserts a given record into a given table.
@@ -83,7 +119,7 @@ def general_query(connection):
 
 
 connection = connect_to_azure_sql_database()
-show_records_for_day(connection, 1)
+show_records_for_day(connection, 2)
 
 connection.close()
 
