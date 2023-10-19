@@ -2,6 +2,8 @@
 
 import pyodbc
 
+import math
+
 from pymongo import MongoClient
 import json
 # Get these values from the Azure portal page for your cosmos db account. Change the details to fit your database and collection
@@ -16,6 +18,7 @@ mongo_client = MongoClient(uri)
 my_doc_db = mongo_client[cosmos_database_name]
 # The name of the collection you are querying
 my_orders = my_doc_db[cosmos_collection_name]
+my_drivers = my_doc_db["Drivers"]
 my_docs = my_orders.find({}, {'_id':0})
 # Prints all documents in the collection
 
@@ -43,7 +46,6 @@ def get_order_items_sql(connection, order_id):
     itemsList = []
     for row in rows:
        itemsList.append({'Pizza_Name' : row[2]  , 'Quantity': row[3] , 'Price_Each' :  float(row[4])})
-    print(itemsList[0]['Pizza_Name'])
     return(itemsList)
 
 def get_customer_details(connection, customer_id):
@@ -62,10 +64,26 @@ def create_Delivery_Doc(connection, order_id, customer_id):
     """Shows all the records for a given table."""
     itemsList = {}
     customer_list = get_customer_details(connection,customer_id)
-    itemsList.update({'customer_name' : customer_list['first_Name'], 
+    order_list = get_order_items_sql(connection, order_id)
+    itemsList.update({'customer_name' : customer_list['first_Name'] + " " + customer_list['last_Name'], 
                       'customer_address' : customer_list['address'],
-                      'customer_postcode' : customer_list['post_code']})
+                      'customer_postcode' : customer_list['post_code'],
+                      'Pizzas' : order_list,
+                      'Total_Cost' : total_Cost(order_list),
+                      'Driver' : allocate_Driver(customer_list['post_code'])
+                      })
     return(itemsList)
+
+def allocate_Driver(post_code):
+    order_delivery_zone = roundDown(post_code)
+    driver = my_drivers.find_one({"delivery_Code": order_delivery_zone}, {'_id':0})
+    return driver
+
+def total_Cost(order_list):
+    total = 0
+    for order in order_list:
+        total += order['Quantity'] * order['Price_Each']
+    return total
 
 def create_Cooking_Doc(connection, order_id):
     """Shows all the records for a given table."""
@@ -94,7 +112,7 @@ def show_records_for_day(connection, day):
             {
                 "order_id" : row[0],
                 "customer_Info" : get_customer_details(connection,row[1]),
-                "order_date" : row[3],
+                "order_date" : str(row[2]),
                 "items" : get_order_items_sql(connection,row[0]),
                 "delivery_Docket" : create_Delivery_Doc(connection,row[0],row[1])
                 
@@ -117,6 +135,9 @@ def general_query(connection):
     for row in rows:
         print(row)
 
+def roundDown(n):
+    n = n[:-2] + '00'
+    return int(n)
 
 connection = connect_to_azure_sql_database()
 show_records_for_day(connection, 2)
