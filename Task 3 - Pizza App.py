@@ -20,12 +20,24 @@ my_drivers = my_doc_db["Drivers"]
 my_docs = my_orders.find({}, {'_id':0})
 # Prints all documents in the collection
 
-
+store_Id = 1106100
 
 def connect_to_azure_sql_database():
   """Connects to an Azure SQL database."""
   server = 'task3headoffice.database.windows.net'
   database = 'Head_Office'
+  username = 'dsm007'
+  password = 'Password123'   
+  driver='{ODBC Driver 17 for SQL Server}'
+  
+  connection_string = 'Driver='+driver+';Server=tcp:'+server+',1433;Database='+database+';Uid='+username+';PWD='+password+';Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
+  connection = pyodbc.connect(connection_string)
+  return connection
+
+def connect_to_joes_pizza_sql():
+  """Connects to an Azure SQL database."""
+  server = 'task3headoffice.database.windows.net'
+  database = 'Joes_Pizza_Place'
   username = 'dsm007'
   password = 'Password123'   
   driver='{ODBC Driver 17 for SQL Server}'
@@ -101,7 +113,7 @@ def create_Cooking_Doc(connection, order_id, customer_id):
                       })
     return(cooking_doc) 
 
-def show_records_for_day(connection, day):
+def show_records_for_day(connection, my_sql, day):
     """Shows all the records for a given table."""
     cursor = connection.cursor()
     cursor.execute("SELECT * \n"
@@ -122,9 +134,9 @@ def show_records_for_day(connection, day):
         )
         print(get_customer_details(connection,row[1])['first_Name'])
     todays_Date = str(row[2])
-    daily_Summary(todays_Date)
+    daily_Summary(todays_Date, my_sql)
 
-def daily_Summary(date):
+def daily_Summary(date,connection):
     """total driver commission for the day"""
     total_orders = 0
     daily_Items = []
@@ -140,11 +152,23 @@ def daily_Summary(date):
             days_drivers[doc["delivery_Docket"]["Driver"]['driver_Name']] += doc["delivery_Docket"]["Comission"]
             
     total_sales = total_Cost(daily_Items)
-    print("total orders are " + str(total_orders))
-    print("total sales is " + str(total_sales))
-    print(days_drivers)
-    print("favaroute pizzas are " + str(find_Fav_Pizza(daily_Items)))
-    return
+    days_drivers_str = ""
+    for drivers in days_drivers:
+        days_drivers_str += str(drivers) + " : $" + str(days_drivers.get(drivers)) + " ,"
+    
+    fav_pizza = find_Fav_Pizza(daily_Items)
+    fav_pizza_str = ""
+    for pizza in fav_pizza:
+        fav_pizza_str += pizza + " , "
+        
+    cursor = connection.cursor()
+    try:
+        cursor.execute("""INSERT INTO dbo.Daily_Summary (Summary_Date, Store_Id, Total_Orders,Total_Sales,Drivers_Com,Favourite_Pizza) 
+                   VALUES (?, ?, ?, ?, ?, ?)""",(date, store_Id, total_orders,total_sales,days_drivers_str,fav_pizza_str))
+        connection.commit()
+    except Exception as e:
+        print("Already Exist In Database")
+        print(e)
 
 def find_Fav_Pizza(daily_Items):
     favourates_List = []
@@ -158,9 +182,18 @@ def find_Fav_Pizza(daily_Items):
             favourates_List.append(i)
     return favourates_List
 
+def print_sql(connection):
+    """Shows all the records for a given table."""
+    cursor = connection.cursor()
+    cursor.execute("SELECT * \n"
+                   + "FROM [dbo].[test]\n")
+    rows = cursor.fetchone()
+    print(rows)
+
 connection = connect_to_azure_sql_database()
+my_sql = connect_to_joes_pizza_sql()
 my_orders.drop()
-show_records_for_day(connection, 2)
+show_records_for_day(connection, my_sql, 3)
 
 connection.close()
 
