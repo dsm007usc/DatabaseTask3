@@ -113,13 +113,12 @@ def create_Cooking_Doc(connection, order_id, customer_id):
                       })
     return(cooking_doc) 
 
-def show_records_for_day(connection, my_sql, day):
+def show_records_for_day(connection, my_sql, date):
     """Shows all the records for a given table."""
     cursor = connection.cursor()
     cursor.execute("SELECT * \n"
-                   + "FROM [pizza].[orders] as p \n"
-                   + "LEFT OUTER JOIN [dbo].[order_date_to_days] as v On p.order_date = v.order_date \n"
-                   + "where [v].[order_day] = '" + str(day) + "' ")
+                   + "FROM [pizza].[orders] as O \n"
+                   + "where [O].[order_date] = '" + str(date) + "' ")
     rows = cursor.fetchall()
     for row in rows:
         my_orders.insert_one(
@@ -132,9 +131,10 @@ def show_records_for_day(connection, my_sql, day):
                 "cooking_Docket" : create_Cooking_Doc(connection,row[0],row[1])
             }   
         )
-        print(get_customer_details(connection,row[1])['first_Name'])
     todays_Date = str(row[2])
     daily_Summary(todays_Date, my_sql)
+    upload_summary_to_headoffice(connection,my_sql,todays_Date)
+    print(str(date) + " is completed")
 
 def daily_Summary(date,connection):
     """total driver commission for the day"""
@@ -167,8 +167,18 @@ def daily_Summary(date,connection):
                    VALUES (?, ?, ?, ?, ?, ?)""",(date, store_Id, total_orders,total_sales,days_drivers_str,fav_pizza_str))
         connection.commit()
     except Exception as e:
-        print("Already Exist In Database")
-        print(e)
+        """already exist"""
+        
+def upload_summary_to_headoffice(head_Office_con, joes_pizza_con, date):
+    jp_cursor = joes_pizza_con.cursor()
+    jp_cursor.execute("""SELECT * FROM dbo.Daily_Summary
+                   WHERE Summary_Date = ?""",(date))
+    daily_sum = jp_cursor.fetchone()
+    
+    ho_cursor = head_Office_con.cursor()
+    ho_cursor.execute("""INSERT INTO pizza.summary (store_id, summary_date, total_sales, total_orders, best_product) 
+                   VALUES (?, ?, ?, ?, ?)""",(store_Id, date,daily_sum[3],daily_sum[2],daily_sum[5]))
+    head_Office_con.commit()
 
 def find_Fav_Pizza(daily_Items):
     favourates_List = []
@@ -181,19 +191,29 @@ def find_Fav_Pizza(daily_Items):
         if pizza_List.get(i) == maximum:
             favourates_List.append(i)
     return favourates_List
-
-def print_sql(connection):
-    """Shows all the records for a given table."""
+    
+def clear_Head_Office(connection):
     cursor = connection.cursor()
-    cursor.execute("SELECT * \n"
-                   + "FROM [dbo].[test]\n")
-    rows = cursor.fetchone()
-    print(rows)
+    cursor.execute("DELETE FROM pizza.summary WHERE store_id = 1106100")
+    connection.commit()
+
+def run_all_Days(head_office, my_sql):
+    cursor = head_office.cursor()
+    cursor.execute("""SELECT order_date
+    FROM pizza.orders
+    GROUP BY order_date
+    ORDER BY order_date ASC""")
+    rows = cursor.fetchall()
+    for row in rows:
+        show_records_for_day(head_office,my_sql,row[0])
+    print("All Orders Complete")
 
 connection = connect_to_azure_sql_database()
 my_sql = connect_to_joes_pizza_sql()
 my_orders.drop()
-show_records_for_day(connection, my_sql, 3)
-
+clear_Head_Office(connection)
+#show_records_for_day(connection, my_sql, "2023-08-15")
+run_all_Days(connection, my_sql)
 connection.close()
+my_sql.close()
 
