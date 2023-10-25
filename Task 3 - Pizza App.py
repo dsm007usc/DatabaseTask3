@@ -4,7 +4,9 @@ import pyodbc
 
 from pymongo import MongoClient
 import json
-# Get these values from the Azure portal page for your cosmos db account. Change the details to fit your database and collection
+#Connects All Databases
+
+# Connects to my Document Database
 cosmos_user_name = "dmark"
 cosmos_password = "cXfhNEQmVi343hQXU1WHzdJSDrIhksxsb6fODmS7WG4Cu0RAc5kn7V3yTqkrVYN8C3HdAlAq6TrrACDb3m07fQ=="
 cosmos_url = "dmark.mongo.cosmos.azure.com:10255/" # use 10255 not 443
@@ -12,42 +14,36 @@ cosmos_database_name = "PizzaDocData"
 cosmos_collection_name = "Orders"
 uri = f'mongodb://{cosmos_user_name}:{cosmos_password}@{cosmos_url}?ssl=true&retrywrites=false&replicaSet=globaldb&maxIdleTimeMS=120000&appName=@{cosmos_user_name}@'
 mongo_client = MongoClient(uri)
-# This is the name of the Mongo compatible database
 my_doc_db = mongo_client[cosmos_database_name]
-# The name of the collection you are querying
 my_orders = my_doc_db[cosmos_collection_name]
 my_drivers = my_doc_db["Drivers"]
-my_docs = my_orders.find({}, {'_id':0})
-# Prints all documents in the collection
-
-store_Id = 1106100
 
 def connect_to_azure_sql_database():
-  """Connects to an Azure SQL database."""
+#Connects to Head Office Database
   server = 'task3headoffice.database.windows.net'
   database = 'Head_Office'
   username = 'dsm007'
   password = 'Password123'   
-  driver='{ODBC Driver 17 for SQL Server}'
-  
+  driver='{ODBC Driver 17 for SQL Server}' 
   connection_string = 'Driver='+driver+';Server=tcp:'+server+',1433;Database='+database+';Uid='+username+';PWD='+password+';Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
   connection = pyodbc.connect(connection_string)
   return connection
 
 def connect_to_joes_pizza_sql():
-  """Connects to an Azure SQL database."""
+#Connects to My SQL database
   server = 'task3headoffice.database.windows.net'
   database = 'Joes_Pizza_Place'
   username = 'dsm007'
   password = 'Password123'   
   driver='{ODBC Driver 17 for SQL Server}'
-  
   connection_string = 'Driver='+driver+';Server=tcp:'+server+',1433;Database='+database+';Uid='+username+';PWD='+password+';Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
   connection = pyodbc.connect(connection_string)
   return connection
 
+store_Id = 1106100
+
 def get_order_items_sql(connection, order_id):
-    """Shows all the records for a given table."""
+    #Gets a list of all items on and order
     cursor = connection.cursor()
     cursor.execute("SELECT * \n"
                    + "FROM [pizza].[order_items] as p\n"
@@ -59,7 +55,7 @@ def get_order_items_sql(connection, order_id):
     return(itemsList)
 
 def get_customer_details(connection, customer_id):
-    """Shows all the records for a given table."""
+    #Gets All the customers details based on the customer id
     cursor = connection.cursor()
     cursor.execute("SELECT * \n"
                    + "FROM [pizza].[customers] as c\n"
@@ -71,7 +67,7 @@ def get_customer_details(connection, customer_id):
     return(cust_dets)
 
 def create_Delivery_Doc(connection, order_id, customer_id):
-    """Shows all the records for a given table."""
+    #Creates the delivery document for a specific order
     dilivery_doc = {}
     customer_list = get_customer_details(connection,customer_id)
     order_list = get_order_items_sql(connection, order_id)
@@ -88,21 +84,25 @@ def create_Delivery_Doc(connection, order_id, customer_id):
     return(dilivery_doc)
 
 def allocate_Driver(post_code):
+    #Allocates the driver to the order based on where the customer is located
     order_delivery_zone = roundDown(post_code)
     driver = my_drivers.find_one({"delivery_Code": order_delivery_zone}, {'_id':0})
     return driver
 
 def roundDown(n):
+    #Used to round down the post code to get a postcode zone for allocating a driver
     n = n[:-2] + '00'
     return int(n)
 
 def total_Cost(order_list):
+    #Calculates the total of all the items on the order 
     total = 0
     for order in order_list:
         total += order['Quantity'] * order['Price_Each']
     return round(total,2)
 
 def create_Cooking_Doc(connection, order_id, customer_id):
+    #Creates a cooking document
     """Shows all the records for a given table."""
     cooking_doc = {}
     customer_list = get_customer_details(connection,customer_id)
@@ -114,6 +114,8 @@ def create_Cooking_Doc(connection, order_id, customer_id):
     return(cooking_doc) 
 
 def show_records_for_day(connection, my_sql, date):
+    #Creates all the order documents for the day based on the day 
+    #Then does the summary of the day and sends it to my sql then send from my sql Database to the head office database
     """Shows all the records for a given table."""
     cursor = connection.cursor()
     cursor.execute("SELECT * \n"
@@ -137,7 +139,7 @@ def show_records_for_day(connection, my_sql, date):
     print(str(date) + " is completed")
 
 def daily_Summary(date,connection):
-    """total driver commission for the day"""
+    #Does the daily summary for the specific date and sends it to my sql Database
     total_orders = 0
     daily_Items = []
     days_drivers = {}
@@ -152,6 +154,7 @@ def daily_Summary(date,connection):
             days_drivers[doc["delivery_Docket"]["Driver"]['driver_Name']] += doc["delivery_Docket"]["Comission"]
             
     total_sales = total_Cost(daily_Items)
+    
     days_drivers_str = ""
     for drivers in days_drivers:
         days_drivers_str += str(drivers) + " : $" + str(days_drivers.get(drivers)) + " ,"
@@ -162,6 +165,8 @@ def daily_Summary(date,connection):
         fav_pizza_str += pizza + " , "
         
     cursor = connection.cursor()
+    
+    #If is already in the database will not create doubles
     try:
         cursor.execute("""INSERT INTO dbo.Daily_Summary (Summary_Date, Store_Id, Total_Orders,Total_Sales,Drivers_Com,Favourite_Pizza) 
                    VALUES (?, ?, ?, ?, ?, ?)""",(date, store_Id, total_orders,total_sales,days_drivers_str,fav_pizza_str))
@@ -170,6 +175,7 @@ def daily_Summary(date,connection):
         """already exist"""
         
 def upload_summary_to_headoffice(head_Office_con, joes_pizza_con, date):
+    #sends daily summary from my sql database to the head office database
     jp_cursor = joes_pizza_con.cursor()
     jp_cursor.execute("""SELECT * FROM dbo.Daily_Summary
                    WHERE Summary_Date = ?""",(date))
@@ -181,6 +187,7 @@ def upload_summary_to_headoffice(head_Office_con, joes_pizza_con, date):
     head_Office_con.commit()
 
 def find_Fav_Pizza(daily_Items):
+    #Finds which pizzas are the favourate for the day, works if there are multiple favourate pizzas
     favourates_List = []
     pizza_List = {"Hawaiian" : 0, "Margherita" : 0, "Meatlovers" : 0 , "Pepperoni" : 0 , "Supreme" : 0 , "Vegetarian" : 0}
     for items in daily_Items:
@@ -193,11 +200,13 @@ def find_Fav_Pizza(daily_Items):
     return favourates_List
     
 def clear_Head_Office(connection):
+    #Clears my entrys from head office database
     cursor = connection.cursor()
     cursor.execute("DELETE FROM pizza.summary WHERE store_id = 1106100")
     connection.commit()
 
 def run_all_Days(head_office, my_sql):
+    #Runs all the days inside the databse, will work if more dates are added or deleted 
     cursor = head_office.cursor()
     cursor.execute("""SELECT order_date
     FROM pizza.orders
@@ -208,11 +217,12 @@ def run_all_Days(head_office, my_sql):
         show_records_for_day(head_office,my_sql,row[0])
     print("All Orders Complete")
 
+
 connection = connect_to_azure_sql_database()
 my_sql = connect_to_joes_pizza_sql()
 my_orders.drop()
 clear_Head_Office(connection)
-#show_records_for_day(connection, my_sql, "2023-08-15")
+#show_records_for_day(connection, my_sql, "2023-08-15") can be used to run a specific date
 run_all_Days(connection, my_sql)
 connection.close()
 my_sql.close()
