@@ -32,17 +32,6 @@ def connect_to_azure_sql_database():
   connection = pyodbc.connect(connection_string)
   return connection
 
-"""def connect_to_azure_sql_database():
-#Connects to Head Office Database
-  server = 'task3headoffice.database.windows.net'
-  database = 'Head_Office'
-  username = 'dsm007'
-  password = 'Password123'   
-  driver='{ODBC Driver 17 for SQL Server}' 
-  connection_string = 'Driver='+driver+';Server=tcp:'+server+',1433;Database='+database+';Uid='+username+';PWD='+password+';Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
-  connection = pyodbc.connect(connection_string)
-  return connection"""
-
 def connect_to_joes_pizza_sql():
 #Connects to My SQL database
   server = 'task3headoffice.database.windows.net'
