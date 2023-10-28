@@ -23,6 +23,17 @@ my_drivers = my_doc_db["Drivers"]
 
 def connect_to_azure_sql_database():
 #Connects to Head Office Database
+  server = 'ict320-task3d.database.windows.net'
+  database = 'joe-pizzeria'
+  username = 'student320'
+  password = 'ICT320_student'   
+  driver='{ODBC Driver 17 for SQL Server}' 
+  connection_string = 'Driver='+driver+';Server=tcp:'+server+',1433;Database='+database+';Uid='+username+';PWD='+password+';Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
+  connection = pyodbc.connect(connection_string)
+  return connection
+
+"""def connect_to_azure_sql_database():
+#Connects to Head Office Database
   server = 'task3headoffice.database.windows.net'
   database = 'Head_Office'
   username = 'dsm007'
@@ -30,7 +41,7 @@ def connect_to_azure_sql_database():
   driver='{ODBC Driver 17 for SQL Server}' 
   connection_string = 'Driver='+driver+';Server=tcp:'+server+',1433;Database='+database+';Uid='+username+';PWD='+password+';Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
   connection = pyodbc.connect(connection_string)
-  return connection
+  return connection"""
 
 def connect_to_joes_pizza_sql():
 #Connects to My SQL database
